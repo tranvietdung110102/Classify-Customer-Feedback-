@@ -1,0 +1,196 @@
+{% extends "../base_admin.html" %}
+{% block title %}Customer Feedback Overview{% endblock title %}
+{% block content %}
+<div class="container my-4">
+    <h1 class="display-3 text-primary fw-bold text-center mb-5">Customer Feedback Overview</h1>
+    <div class="row justify-content-center gap-4">
+        <!-- Pie Chart -->
+        <div class="col-lg-5 col-md-6 mb-4">
+            <div class="card shadow-sm rounded-4">
+                <div class="card-body">
+                    <h5 class="card-title text-center fw-semibold mb-3">Feedback Distribution</h5>
+                    <canvas id="pieChart" style="max-height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bar Chart -->
+        <div class="col-lg-5 col-md-6 mb-4">
+            <div class="card shadow-sm rounded-4">
+                <div class="card-body">
+                    <h5 class="card-title text-center fw-semibold mb-3">Number of Feedbacks</h5>
+                    <div class="mb-3 text-end">
+                        <label for="timeframeSelect" class="form-label me-2">By:</label>
+                        <select id="timeframeSelect" class="form-select w-auto d-inline-block">
+                            <option value="month" selected>Month</option>
+                            <option value="day">Day</option>
+                        </select>
+                    </div>
+                    <canvas id="barChart" style="max-height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông tin cá nhân ở góc dưới bên phải -->
+    <div class="text-end position-fixed bottom-0 end-0 p-3" style="background-color: rgba(255, 255, 255, 0.9); border-radius: 10px; max-width: 250px;">
+        <p class="mb-1 fw-bold">Name: Trần Việt Dũng</p>
+        <p class="mb-0 fw-bold">MSV: 2021050878</p>
+    </div>
+</div>
+
+<!-- Tùy chỉnh thêm CSS -->
+<style>
+  body {
+    background-color: #f3f6f9;
+  }
+  .card {
+    border: none;
+    background: #ffffff;
+    transition: transform 0.2s ease-in-out;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  .card-title {
+    font-size: 1.5rem;
+    color: #495057;
+  }
+  .form-label {
+    color: #495057;
+    font-weight: 500;
+  }
+  .text-primary {
+    color: #6c63ff !important;
+  }
+  .text-end p {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
+  .container {
+    max-width: 1200px;
+  }
+  .gap-4 {
+    gap: 1.5rem;
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let pieChart, barChart;
+
+  function createPieChart(ctx, labels, data) {
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: ['rgba(102, 178, 255, 0.7)', 'rgba(255, 102, 102, 0.7)', 'rgba(255, 229, 153, 0.7)'],
+          borderColor: ['rgba(102, 178, 255, 1)', 'rgba(255, 102, 102, 1)', 'rgba(255, 229, 153, 1)'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  function createBarChart(ctx, labels, datasets) {
+    if (barChart) barChart.destroy();
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              color: '#6c757d'
+            },
+            grid: {
+              color: '#e9ecef'
+            }
+          },
+          x: {
+            ticks: {
+              color: '#6c757d'
+            }
+          }
+        },
+        plugins: {
+          legend: { position: 'top' }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  function loadBarChartData(timeframe) {
+    const apiUrl = (timeframe === 'day') ? 'http://127.0.0.1:8000/bar-chart-day' : 'http://127.0.0.1:8000/bar-chart';
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const labels = data.labels;
+        const barData = [
+          {
+            label: 'Positive',
+            data: data.positive_data,
+            backgroundColor: 'rgba(102, 178, 255, 0.7)',
+            borderColor: 'rgba(102, 178, 255, 1)',
+            borderWidth: 1
+          },
+          {
+            label: 'Neutral',
+            data: data.neutral_data,
+            backgroundColor: 'rgba(255, 229, 153, 0.7)',
+            borderColor: 'rgba(255, 229, 153, 1)',
+            borderWidth: 1
+          },
+          {
+            label: 'Negative',
+            data: data.negative_data,
+            backgroundColor: 'rgba(255, 102, 102, 0.7)',
+            borderColor: 'rgba(255, 102, 102, 1)',
+            borderWidth: 1
+          }
+        ];
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        createBarChart(barCtx, labels, barData);
+      })
+      .catch(error => console.error('Error fetching Bar Chart data:', error));
+  }
+
+  function fetchPieChartData() {
+    fetch('http://127.0.0.1:8000/pie-chart')
+      .then(response => response.json())
+      .then(data => {
+        const labels = data.labels;
+        const pieData = data.data;
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        createPieChart(pieCtx, labels, pieData);
+      })
+      .catch(error => console.error('Error fetching Pie Chart data:', error));
+  }
+
+  loadBarChartData('month');
+  fetchPieChartData();
+
+  document.getElementById('timeframeSelect').addEventListener('change', (event) => {
+    const timeframe = event.target.value;
+    loadBarChartData(timeframe);
+  });
+</script>
+{% endblock content %}

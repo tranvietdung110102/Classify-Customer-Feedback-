@@ -1,0 +1,250 @@
+{% extends "../base_admin.html" %} 
+{% block title %}Product page{% endblock title %} 
+{% block content %}
+<h1 class="text-center" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5)">
+  Statistical
+</h1>
+<div class="container-fluid">
+  <a href="#" class="btn btn-sm btn-primary mb-2">Detail</a>
+  <!--  Row 1 -->
+  <div class="row">
+    <div class="col-lg-12 d-flex align-items-strech">
+      <div class="card w-100">
+        <div class="card-body">
+          <div class="d-sm-flex d-block align-items-center justify-content-between mb-9">
+            <div class="mb-3 mb-sm-0">
+              <label for="action-select">Thống kê sản phẩm</label>
+              <select class="form-control" id="option-select">
+                <option value="">Chọn tùy chọn</option>
+                <option value="total-revenue">Tổng doanh thu</option>
+                <option value="total-product">Thống kê sản phẩm đã bán</option>
+              </select>
+            </div>
+            <div>
+              <label for="action-select">Ngày tháng năm</label>
+              <select class="form-control" id="option-date-time">
+                <option value="day">Day</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
+          </div>
+          <canvas id="myChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let myChart;
+
+  function createChart(ctx, labels, data) {
+    myChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Tổng sản phẩm đã bán',
+          data: data,
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function createChartRevenue(ctx, labels, data) {
+    if (myChart) myChart.destroy();
+    myChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Tổng doanh thu',
+          data: data,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function getDaysInCurrentMonth() {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  }
+
+  const actionSelect = document.getElementById('option-select');
+  const dateTimeSelect = document.getElementById('option-date-time');
+  actionSelect.addEventListener('change', handleActionChange);
+  dateTimeSelect.addEventListener('change', handleDateTimeChange);
+
+  function handleActionChange() {
+    const selectedAction = actionSelect.value;
+    const selectedDateTime = dateTimeSelect.value;
+    if (myChart) myChart.destroy();
+    if (selectedAction === 'total-revenue') displayTotalRevenueChart(selectedDateTime);
+    else if (selectedAction === 'total-product') displayTotalProductChart(selectedDateTime);
+  }
+
+  function handleDateTimeChange() {
+    const selectedAction = actionSelect.value;
+    const selectedDateTime = dateTimeSelect.value;
+    if (myChart) myChart.destroy();
+    if (selectedAction === 'total-revenue') displayTotalRevenueChart(selectedDateTime);
+    else if (selectedAction === 'total-product') displayTotalProductChart(selectedDateTime);
+  }
+
+  function displayTotalRevenueChart(selectedDateTime) {
+    const ctx = document.getElementById('myChart').getContext('2d');
+    switch (selectedDateTime) {
+      case 'day':
+        fetch('/statistics_revenue_day')
+          .then(response => response.json())
+          .then(result => createChartRevenue(ctx, getDaysInCurrentMonth(), Object.values(result)))
+          .catch(error => console.error('Error fetching daily data:', error));
+        break;
+      case 'month':
+        fetch('/statistics_revenue_month')
+          .then(response => response.json())
+          .then(result => createChartRevenue(ctx, Object.keys(result), Object.values(result)))
+          .catch(error => console.error('Error fetching monthly data:', error));
+        break;
+      case 'year':
+        fetch('/statistics_revenue_year')
+          .then(response => response.json())
+          .then(result => createChartRevenue(ctx, Object.keys(result), Object.values(result)))
+          .catch(error => console.error('Error fetching yearly data:', error));
+        break;
+    }
+  }
+
+  function displayTotalProductChart(selectedDateTime) {
+    const ctx = document.getElementById('myChart').getContext('2d');
+    switch (selectedDateTime) {
+      case 'day':
+        fetch('/statistics_product_day')
+          .then(response => response.json())
+          .then(result => createChart(ctx, getDaysInCurrentMonth(), result))
+          .catch(error => console.error('Error fetching daily data:', error));
+        break;
+      case 'month':
+        fetch('/statistics_product_month')
+          .then(response => response.json())
+          .then(result => createChart(ctx, ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], result))
+          .catch(error => console.error('Error fetching monthly data:', error));
+        break;
+      case 'year':
+        fetch('/statistics_product_year')
+          .then(response => response.json())
+          .then(result => createChart(ctx, result.data.map(item => item.year), result.data.map(item => item.value)))
+          .catch(error => console.error('Error fetching yearly data:', error));
+        break;
+    }
+  }
+</script>
+
+<script>
+  let pieChart, barChart;
+
+  // Hàm tạo Pie Chart từ API
+  function createPieChart(ctx, labels, data) {
+    pieChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 206, 86, 0.2)'],
+          borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)'],
+          borderWidth: 2
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'top' }
+        }
+      }
+    });
+  }
+
+  // Hàm tạo Bar Chart (Số lượng đánh giá theo tháng chia theo tốt, bình thường, xấu)
+  function createBarChart(ctx, labels, datasets) {
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  // Fetch dữ liệu Pie Chart từ API
+  fetch('http://127.0.0.1:8000/pie-chart')
+    .then(response => response.json())
+    .then(data => {
+      const labels = data.labels;
+      const pieData = data.data;
+      const pieCtx = document.getElementById('pieChart').getContext('2d');
+      createPieChart(pieCtx, labels, pieData);
+    })
+    .catch(error => console.error('Error fetching Pie Chart data:', error));
+
+  // Fetch dữ liệu Bar Chart từ API
+  fetch('http://127.0.0.1:8000/bar-chart')
+    .then(response => response.json())
+    .then(data => {
+      const labels = data.labels;
+      const barData = [
+        {
+          label: 'Tốt',
+          data: data.positive_data,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',  // Xanh
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Bình thường',
+          data: data.neutral_data,
+          backgroundColor: 'rgba(255, 206, 86, 0.2)',  // Vàng
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Xấu',
+          data: data.negative_data,
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',  // Đỏ
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }
+      ];
+      const barCtx = document.getElementById('barChart').getContext('2d');
+      createBarChart(barCtx, labels, barData);
+    })
+    .catch(error => console.error('Error fetching Bar Chart data:', error));
+</script>
+
+
+{% endblock content %}
